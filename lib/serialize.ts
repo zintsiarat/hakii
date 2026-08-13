@@ -1,0 +1,1 @@
+export const json=(v:any)=>JSON.parse(JSON.stringify(v,(_,x)=>typeof x==='bigint'?x.toString():x));

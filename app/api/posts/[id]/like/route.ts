@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server'; import {db} from '@/lib/db'; import {requireUser} from '@/lib/auth';
+export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){const u=await requireUser();const id=BigInt((await params).id);const key={userId_postId:{userId:u.id,postId:id}};const old=await db.like.findUnique({where:key});if(old)await db.like.delete({where:key});else await db.like.create({data:{userId:u.id,postId:id}});return NextResponse.json({liked:!old})}

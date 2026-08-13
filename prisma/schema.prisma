@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum AdminStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+model User {
+  id            BigInt     @id @default(autoincrement())
+  hakiId        BigInt     @unique
+  username      String     @unique
+  email         String     @unique
+  passwordHash  String
+  displayName   String
+  bio           String?
+  avatarUrl     String?
+  status        UserStatus @default(ACTIVE)
+  hakiIdVisible Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  posts         Post[]
+  likes         Like[]
+  comments      Comment[]
+  reposts       Repost[]
+  following     Follow[]   @relation("following")
+  followers     Follow[]   @relation("followers")
+  bookmarks    Bookmark[]
+  sessions      Session[]
+  notifications Notification[]
+}
+
+model Session {
+  id        BigInt   @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    BigInt
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id         BigInt    @id @default(autoincrement())
+  authorId   BigInt
+  text       String?
+  visibility String    @default("public")
+  hiddenAt   DateTime?
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes      Like[]
+  comments   Comment[]
+  reposts    Repost[]
+  bookmarks  Bookmark[]
+  tags       PostTag[]
+}
+
+model Like {
+  userId    BigInt
+  postId    BigInt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+}
+
+model Repost {
+  userId    BigInt
+  postId    BigInt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+}
+
+model Bookmark {
+  userId    BigInt
+  postId    BigInt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+}
+
+model Comment {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  postId    BigInt
+  text      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Follow {
+  followerId  BigInt
+  followingId BigInt
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+model Tag {
+  id    BigInt    @id @default(autoincrement())
+  name  String    @unique
+  posts PostTag[]
+}
+
+model PostTag {
+  postId BigInt
+  tagId  BigInt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model Notification {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  type      String
+  text      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminAccount {
+  id               BigInt      @id @default(autoincrement())
+  email            String      @unique
+  name             String
+  passwordHash     String
+  status           AdminStatus @default(INVITED)
+  twoFactorEnabled Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  roles      AdminRole[]
+  auditLogs  AuditLog[]
+  sessions   AdminSession[]
+}
+
+model AdminSession {
+  id        BigInt   @id @default(autoincrement())
+  tokenHash String   @unique
+  adminId   BigInt
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  admin AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id          BigInt          @id @default(autoincrement())
+  name        String          @unique
+  description String?
+
+  permissions RolePermission[]
+  admins      AdminRole[]
+}
+
+model Permission {
+  id          BigInt          @id @default(autoincrement())
+  key         String          @unique
+  description String?
+
+  roles RolePermission[]
+}
+
+model AdminRole {
+  adminId BigInt
+  roleId  BigInt
+
+  admin AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  role  Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([adminId, roleId])
+}
+
+model RolePermission {
+  roleId       BigInt
+  permissionId BigInt
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AuditLog {
+  id         BigInt    @id @default(autoincrement())
+  adminId    BigInt?
+  action     String
+  targetType String?
+  targetId   BigInt?
+  before     Json?
+  after      Json?
+  reason     String?
+  createdAt  DateTime  @default(now())
+
+  admin AdminAccount? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+}
+
+model AdminInvite {
+  id        BigInt    @id @default(autoincrement())
+  email     String
+  tokenHash String    @unique
+  roleIds   BigInt[]
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

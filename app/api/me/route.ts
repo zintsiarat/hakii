@@ -1,0 +1,1 @@
+import {NextResponse} from 'next/server'; import {currentUser} from '@/lib/auth'; import {json} from '@/lib/serialize'; export async function GET(){const u=await currentUser();return NextResponse.json(json(u?{id:u.id,hakiId:u.hakiId,username:u.username,displayName:u.displayName,bio:u.bio,avatarUrl:u.avatarUrl,hakiIdVisible:u.hakiIdVisible}:null))}

@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server'; import {db} from '@/lib/db'; import {requireUser} from '@/lib/auth'; import {z} from 'zod'; import {json} from '@/lib/serialize';
+export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){const u=await requireUser();const x=z.object({text:z.string().min(1).max(2000)}).parse(await req.json());const c=await db.comment.create({data:{userId:u.id,postId:BigInt((await params).id),text:x.text}});return NextResponse.json(json(c),{status:201})}
